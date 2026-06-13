@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Family Setup</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+.setup-wrap { max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+.setup-wrap h1 { font-size: 1.4rem; margin-bottom: .25rem; }
+.setup-wrap p { color: var(--muted); font-size: .9rem; margin-bottom: 1.5rem; }
+.member-row { display: grid; grid-template-columns: 1fr 90px 50px; gap: 8px; align-items: center; margin-bottom: 8px; }
+.member-row input { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; width: 100%; }
+.remove-btn { background: none; border: 1px solid #fcc; color: var(--red); border-radius: 8px; padding: 8px; cursor: pointer; font-size: 13px; }
+.add-member-btn { background: none; border: 1px dashed var(--blue); color: var(--blue); border-radius: 8px; padding: 9px; cursor: pointer; font-size: 13px; width: 100%; margin-bottom: 1rem; }
+.admin-row { display: flex; gap: 8px; align-items: center; margin-top: 1rem; }
+.admin-row input { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; width: 120px; }
+.col-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.col-labels { display: grid; grid-template-columns: 1fr 90px 50px; gap: 8px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="setup-wrap">
+  <h1>⚙️ Family Setup</h1>
+  <p>Add each family member, assign their 4-digit PIN, then save. Enter the admin PIN to save changes.</p>
+
+  <div class="card">
+    <div class="col-labels">
+      <div class="col-label">Name</div>
+      <div class="col-label">4-digit PIN</div>
+      <div></div>
+    </div>
+    <div id="members-list"></div>
+    <button class="add-member-btn" onclick="addRow()">+ Add family member</button>
+
+    <div class="admin-row">
+      <input type="password" id="admin-pin" placeholder="Admin PIN" maxlength="4" />
+      <button class="btn btn-primary" onclick="saveMembers()">Save members</button>
+      <a href="dashboard.html" class="btn btn-secondary" style="text-decoration:none;">View dashboard</a>
+    </div>
+    <div id="save-msg" style="margin-top:.75rem;font-size:13px;"></div>
+  </div>
+
+  <div class="card" style="margin-top:1rem;">
+    <div style="font-size:.85rem;color:var(--muted);line-height:1.6;">
+      <strong>Notes:</strong><br>
+      • The admin PIN is set as the <code>ADMIN_PIN</code> environment variable in Vercel (default: <code>0000</code>).<br>
+      • Each person's PIN is private — only they need to know it.<br>
+      • PINs must be exactly 4 digits.<br>
+      • The dashboard shows everyone's progress publicly (no PIN needed to view).
+    </div>
+  </div>
+</div>
+
+<script>
+let members = [
+  { name: '', pin: '' },
+  { name: '', pin: '' },
+];
+
+function renderRows() {
+  document.getElementById('members-list').innerHTML = members.map((m, i) => `
+    <div class="member-row">
+      <input type="text" placeholder="Name (e.g. Lori)" value="${m.name}" oninput="members[${i}].name=this.value" />
+      <input type="text" placeholder="1234" maxlength="4" pattern="\\d{4}" value="${m.pin}" oninput="members[${i}].pin=this.value" />
+      <button class="remove-btn" onclick="removeRow(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function addRow() { members.push({ name: '', pin: '' }); renderRows(); }
+function removeRow(i) { members.splice(i, 1); renderRows(); }
+
+async function saveMembers() {
+  const adminPin = document.getElementById('admin-pin').value;
+  const msg = document.getElementById('save-msg');
+  const valid = members.filter(m => m.name.trim() && /^\d{4}$/.test(m.pin));
+  if (!valid.length) { msg.innerHTML = '<span style="color:var(--red);">Add at least one member with a name and 4-digit PIN.</span>'; return; }
+
+  try {
+    const r = await fetch('/api/members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminPin, members: valid })
+    });
+    const data = await r.json();
+    if (data.ok) msg.innerHTML = '<span style="color:var(--green);">✓ Saved! ' + valid.length + ' members registered.</span>';
+    else msg.innerHTML = '<span style="color:var(--red);">Error: ' + (data.error || 'Unknown error') + '</span>';
+  } catch (e) {
+    msg.innerHTML = '<span style="color:var(--red);">Could not connect to server.</span>';
+  }
+}
+
+renderRows();
+</script>
+</body>
+</html>

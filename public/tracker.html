@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Health Tracker</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="tracker-header">
+  <a href="index.html" class="back-btn" title="Log out">←</a>
+  <div class="user-pill">
+    <div class="user-dot" id="user-dot" style="background:#3266ad;">?</div>
+    <span class="user-name" id="user-name">Loading...</span>
+  </div>
+  <span class="sync-badge warn" id="sync-badge">Not saved</span>
+</div>
+
+<div class="tracker-body">
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('today')">Today</button>
+    <button class="tab" onclick="showTab('food')">Food</button>
+    <button class="tab" onclick="showTab('favs')">Saved</button>
+    <button class="tab" onclick="showTab('weight')">Weight</button>
+    <button class="tab" onclick="showTab('sugar')">Sugar</button>
+    <button class="tab" onclick="showTab('exercise')">Exercise</button>
+    <button class="tab" onclick="showTab('goals')">Goals</button>
+  </div>
+
+  <!-- TODAY -->
+  <div id="tab-today" class="section active">
+    <div class="metric-grid" id="summary-tiles"></div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+        <div class="card-title" style="margin:0;">Food log</div>
+        <input type="date" id="view-date" style="font-size:12px;border:1px solid var(--border);border-radius:7px;padding:4px 7px;" onchange="renderToday()" />
+      </div>
+      <div id="food-log-list"><div class="empty-state">No food logged yet.</div></div>
+    </div>
+  </div>
+
+  <!-- FOOD SEARCH -->
+  <div id="tab-food" class="section">
+    <div class="card">
+      <div class="card-title">Search food database</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">USDA FoodData Central · 600,000+ foods · ★ to save</div>
+      <div class="form-row">
+        <input type="text" id="food-query" placeholder="Search: eggs, oatmeal, chicken..." style="flex:1;min-width:140px;" onkeydown="if(event.key==='Enter')searchFood()" />
+        <select id="meal-type">
+          <option value="breakfast">Breakfast</option>
+          <option value="lunch">Lunch</option>
+          <option value="dinner">Dinner</option>
+          <option value="snack">Snack</option>
+        </select>
+        <button class="btn btn-primary" onclick="searchFood()">Search</button>
+      </div>
+      <div id="search-results"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Add manually</div>
+      <div class="form-row">
+        <input type="text" id="m-name" placeholder="Food name" style="flex:1;" />
+      </div>
+      <div class="manual-grid">
+        <div class="manual-field"><label>Calories</label><input type="number" id="m-cal" placeholder="kcal" /></div>
+        <div class="manual-field"><label>Protein (g)</label><input type="number" id="m-prot" /></div>
+        <div class="manual-field"><label>Carbs (g)</label><input type="number" id="m-carb" /></div>
+        <div class="manual-field"><label>Fat (g)</label><input type="number" id="m-fat" /></div>
+        <div class="manual-field"><label>Sugar (g)</label><input type="number" id="m-sugar" /></div>
+        <div class="manual-field"><label>Fiber (g)</label><input type="number" id="m-fiber" /></div>
+      </div>
+      <div class="form-row" style="margin-top:8px;">
+        <select id="m-meal">
+          <option value="breakfast">Breakfast</option>
+          <option value="lunch">Lunch</option>
+          <option value="dinner">Dinner</option>
+          <option value="snack">Snack</option>
+        </select>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="font-size:12px;color:var(--muted);">Qty:</span>
+          <input type="number" id="m-qty" value="1" min="0.25" step="0.25" style="width:55px;" />
+        </div>
+        <button class="btn btn-primary" onclick="addManual(false)">Add</button>
+        <button class="btn btn-secondary" onclick="addManual(true)">Add & save ★</button>
+      </div>
+      <div id="manual-msg"></div>
+    </div>
+  </div>
+
+  <!-- SAVED FOODS -->
+  <div id="tab-favs" class="section">
+    <div class="card">
+      <div class="card-title">Saved foods</div>
+      <div class="form-row">
+        <input type="text" id="fav-search" placeholder="Filter..." style="flex:1;" oninput="renderFavs()" />
+        <select id="fav-meal">
+          <option value="breakfast">Breakfast</option>
+          <option value="lunch">Lunch</option>
+          <option value="dinner">Dinner</option>
+          <option value="snack">Snack</option>
+        </select>
+      </div>
+      <div id="favs-list"><div class="empty-state">No saved foods yet.</div></div>
+    </div>
+  </div>
+
+  <!-- WEIGHT -->
+  <div id="tab-weight" class="section">
+    <div class="card">
+      <div class="card-title">Log weight</div>
+      <div class="form-row">
+        <input type="number" id="weight-val" placeholder="lbs" step="0.1" style="width:90px;" />
+        <input type="date" id="weight-date" style="width:150px;" />
+        <button class="btn btn-primary" onclick="logWeight()">Log</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Weight history</div>
+      <div id="weight-history"><div class="empty-state">No entries yet.</div></div>
+      <div style="position:relative;width:100%;height:160px;margin-top:.75rem;">
+        <canvas id="weightChart" role="img" aria-label="Weight trend">Weight trend.</canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOOD SUGAR -->
+  <div id="tab-sugar" class="section">
+    <div class="card">
+      <div class="card-title">Log blood sugar <span style="font-size:11px;font-weight:400;color:var(--muted);">(mmol/L)</span></div>
+      <div class="form-row">
+        <input type="number" id="sugar-val" placeholder="e.g. 5.4" step="0.1" style="width:100px;" />
+        <select id="sugar-timing">
+          <option value="fasting">Fasting</option>
+          <option value="before meal">Before meal</option>
+          <option value="after meal">After meal</option>
+          <option value="bedtime">Bedtime</option>
+        </select>
+        <input type="date" id="sugar-date" style="width:150px;" />
+        <button class="btn btn-primary" onclick="logSugar()">Log</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);">Fasting: &lt;5.6 normal · 5.6–6.9 elevated · ≥7.0 high &nbsp;|&nbsp; Post-meal: &lt;7.8 normal · ≥7.8 elevated · ≥11.1 high</div>
+    </div>
+    <div class="card">
+      <div class="card-title">History</div>
+      <div id="sugar-history"><div class="empty-state">No readings yet.</div></div>
+    </div>
+  </div>
+
+  <!-- EXERCISE -->
+  <div id="tab-exercise" class="section">
+    <div class="card">
+      <div class="card-title">Log exercise</div>
+      <div class="form-row">
+        <input type="text" id="ex-name" placeholder="Activity" style="flex:1;min-width:100px;" />
+        <input type="number" id="ex-mins" placeholder="Mins" style="width:70px;" oninput="updateBurn()" />
+        <select id="ex-int" onchange="updateBurn()">
+          <option value="light">Light</option>
+          <option value="moderate">Moderate</option>
+          <option value="vigorous">Vigorous</option>
+        </select>
+        <input type="date" id="ex-date" style="width:150px;" />
+        <button class="btn btn-primary" onclick="logExercise()">Log</button>
+      </div>
+      <div id="burn-est" style="font-size:12px;color:var(--muted);"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Exercise history</div>
+      <div id="exercise-history"><div class="empty-state">No exercise logged yet.</div></div>
+    </div>
+  </div>
+
+  <!-- GOALS -->
+  <div id="tab-goals" class="section">
+    <div class="card">
+      <div class="card-title">Profile & daily goals</div>
+      <div class="goals-grid">
+        <div class="goals-field"><label>Age</label><input type="number" id="g-age" /></div>
+        <div class="goals-field"><label>Weight (lbs)</label><input type="number" id="g-weight" /></div>
+        <div class="goals-field"><label>Calorie goal</label><input type="number" id="g-cal" /></div>
+        <div class="goals-field"><label>Protein (g)</label><input type="number" id="g-prot" /></div>
+        <div class="goals-field"><label>Carbs (g)</label><input type="number" id="g-carb" /></div>
+        <div class="goals-field"><label>Fat (g)</label><input type="number" id="g-fat" /></div>
+        <div class="goals-field"><label>Sugar (g)</label><input type="number" id="g-sugar" /></div>
+        <div class="goals-field"><label>Fiber (g)</label><input type="number" id="g-fiber" /></div>
+      </div>
+      <div class="goals-field" style="margin-top:10px;"><label>Your name (shown on dashboard)</label><input type="text" id="g-name" placeholder="e.g. Lori" /></div>
+      <button class="btn btn-primary" style="margin-top:1rem;" onclick="saveGoals()">Save goals</button>
+      <span id="goals-ok" style="font-size:12px;color:var(--green);margin-left:8px;display:none;">✓ Saved</span>
+    </div>
+    <div class="card" style="border-color:#fcc;">
+      <div class="card-title" style="color:var(--red);">Danger zone</div>
+      <button class="btn" style="border:1px solid var(--red);color:var(--red);background:none;" onclick="clearAll()">Clear all my data</button>
+    </div>
+  </div>
+
+</div><!-- /tracker-body -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────
+const USER_PIN = sessionStorage.getItem('userPin');
+if (!USER_PIN) window.location.href = 'index.html';
+
+const MEMBER_COLORS = ['#3266ad','#1D9E75','#D85A30','#7F77DD','#D4537E','#BA7517'];
+
+let state = {
+  goals: { calories:1800, protein:140, carbs:180, fat:60, sugar:36, fiber:30, age:57, weight:210, name:'' },
+  foodLog: [], weightLog: [], sugarLog: [], exerciseLog: [], savedFoods: []
+};
+let searchResults = {};
+let wChart = null;
+
+// ── Helpers ────────────────────────────────────────────
+function todayStr() { return new Date().toLocaleDateString('en-CA'); }
+function fmtD(d) { if (!d) return ''; return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }); }
+function r1(n) { return Math.round((n || 0) * 10) / 10; }
+function pct(v, g) { return g ? Math.min(100, Math.round(v / g * 100)) : 0; }
+function bcolor(p) { return p >= 100 ? '#E24B4A' : p >= 80 ? '#EF9F27' : '#1D9E75'; }
+function isSaved(id) { return state.savedFoods.some(f => f.id === id); }
+function getViewDate() { const el = document.getElementById('view-date'); return el && el.value ? el.value : todayStr(); }
+
+// ── Sync ───────────────────────────────────────────────
+function setSyncBadge(ok, msg) {
+  const el = document.getElementById('sync-badge');
+  el.className = 'sync-badge' + (ok ? '' : ' warn');
+  el.textContent = msg;
+}
+
+async function saveRemote() {
+  try {
+    const r = await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: USER_PIN, data: state })
+    });
+    const d = await r.json();
+    if (d.ok) setSyncBadge(true, '✓ Saved ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
+    else setSyncBadge(false, 'Save failed');
+  } catch (e) {
+    setSyncBadge(false, 'Offline — saved locally');
+  }
+  try { localStorage.setItem('ht_' + USER_PIN, JSON.stringify(state)); } catch (e) {}
+}
+
+async function loadRemote() {
+  try {
+    const r = await fetch('/api/load?pin=' + USER_PIN);
+    if (r.ok) {
+      const d = await r.json();
+      if (d.ok && d.data) {
+        state = d.data;
+        if (!state.savedFoods) state.savedFoods = [];
+        setSyncBadge(true, '✓ Loaded');
+        return;
+      }
+    }
+  } catch (e) {}
+  // Fall back to localStorage
+  try {
+    const raw = localStorage.getItem('ht_' + USER_PIN);
+    if (raw) { state = JSON.parse(raw); if (!state.savedFoods) state.savedFoods = []; setSyncBadge(false, 'Local data'); }
+  } catch (e) {}
+}
+
+// ── Header ─────────────────────────────────────────────
+async function loadMemberInfo() {
+  try {
+    const r = await fetch('/api/dashboard');
+    const d = await r.json();
+    if (d.members) {
+      const idx = d.members.findIndex(m => m.pin === USER_PIN);
+      if (idx >= 0) {
+        const m = d.members[idx];
+        document.getElementById('user-name').textContent = m.name;
+        document.getElementById('user-dot').textContent = m.name.slice(0, 2).toUpperCase();
+        document.getElementById('user-dot').style.background = MEMBER_COLORS[idx % MEMBER_COLORS.length];
+        return;
+      }
+    }
+  } catch (e) {}
+  const name = state.goals.name || ('User ' + USER_PIN);
+  document.getElementById('user-name').textContent = name;
+  document.getElementById('user-dot').textContent = name.slice(0, 2).toUpperCase();
+}
+
+// ── Tabs ───────────────────────────────────────────────
+function showTab(id) {
+  const ids = ['today','food','favs','weight','sugar','exercise','goals'];
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ids[i] === id));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  if (id === 'today')    renderToday();
+  if (id === 'favs')     renderFavs();
+  if (id === 'weight')   renderWeight();
+  if (id === 'sugar')    renderSugar();
+  if (id === 'exercise') renderExercise();
+  if (id === 'goals')    fillGoals();
+}
+
+// ── Today ──────────────────────────────────────────────
+function getTotals(date) {
+  return state.foodLog.filter(e => e.date === date).reduce((a, e) => {
+    a.calories += e.calories || 0; a.protein += e.protein || 0;
+    a.carbs += e.carbs || 0; a.fat += e.fat || 0;
+    a.sugar += e.sugar || 0; a.fiber += e.fiber || 0;
+    return a;
+  }, { calories:0, protein:0, carbs:0, fat:0, sugar:0, fiber:0 });
+}
+
+function macBadges(f, scale) {
+  scale = scale || 1;
+  return `<span class="badge badge-cal">${Math.round((f.calories||0)*scale)} cal</span>
+          <span class="badge badge-prot">P ${r1((f.protein||0)*scale)}g</span>
+          <span class="badge badge-carb">C ${r1((f.carbs||0)*scale)}g</span>
+          <span class="badge badge-fat">F ${r1((f.fat||0)*scale)}g</span>`;
+}
+
+function renderToday() {
+  const date = getViewDate();
+  const t = getTotals(date), g = state.goals;
+  const tiles = [
+    { label:'Calories', val:Math.round(t.calories), goal:g.calories, unit:'kcal', color:'#3266ad' },
+    { label:'Protein',  val:Math.round(t.protein),  goal:g.protein,  unit:'g',    color:'#1D9E75' },
+    { label:'Carbs',    val:Math.round(t.carbs),     goal:g.carbs,    unit:'g',    color:'#BA7517' },
+    { label:'Fat',      val:Math.round(t.fat),       goal:g.fat,      unit:'g',    color:'#D4537E' },
+    { label:'Sugar',    val:Math.round(t.sugar),     goal:g.sugar,    unit:'g',    color:'#D85A30' },
+    { label:'Fiber',    val:Math.round(t.fiber),     goal:g.fiber,    unit:'g',    color:'#7F77DD' },
+  ];
+  document.getElementById('summary-tiles').innerHTML = tiles.map(m => {
+    const p = pct(m.val, m.goal);
+    return `<div class="metric-tile">
+      <div class="label">${m.label}</div>
+      <div class="value">${m.val}<span style="font-size:10px;font-weight:400;color:var(--muted);"> ${m.unit}</span></div>
+      <div class="sub">${p}% of ${m.goal}</div>
+      <div class="tile-bar"><div class="tile-bar-fill" style="width:${p}%;background:${bcolor(p)};"></div></div>
+    </div>`;
+  }).join('');
+
+  const entries = state.foodLog.filter(e => e.date === date);
+  const list = document.getElementById('food-log-list');
+  if (!entries.length) { list.innerHTML = '<div class="empty-state">No food logged for this day.</div>'; return; }
+
+  const byMeal = {};
+  entries.forEach(e => { if (!byMeal[e.meal]) byMeal[e.meal] = []; byMeal[e.meal].push(e); });
+  list.innerHTML = Object.entries(byMeal).map(([meal, items]) => `
+    <div class="log-meal-section">
+      <div class="meal-label">${meal}</div>
+      ${items.map(item => `
+        <div class="log-item" id="li-${item.id}">
+          <div class="log-item-left">
+            <div class="log-item-name">${item.qty && item.qty !== 1 ? '<span style="color:var(--muted);">×' + item.qty + '</span> ' : ''}${item.name}</div>
+            <div class="log-item-macros">${macBadges(item)}</div>
+          </div>
+          <div class="log-item-right">
+            <span style="font-size:11px;color:var(--muted);">×</span>
+            <input class="qty-input" type="number" value="${item.qty || 1}" min="0.25" step="0.25"
+              onchange="updateQty('${item.id}', this.value)" title="Edit quantity" />
+            <button class="del-btn" onclick="removeFood('${item.id}')" aria-label="Remove">✕</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function removeFood(id) { state.foodLog = state.foodLog.filter(e => e.id !== id); saveRemote(); renderToday(); }
+
+function updateQty(id, newQty) {
+  const qty = parseFloat(newQty) || 1;
+  const entry = state.foodLog.find(e => e.id === id);
+  if (!entry) return;
+  const base = entry._base || {
+    calories: (entry.calories || 0) / (entry.qty || 1), protein: (entry.protein || 0) / (entry.qty || 1),
+    carbs: (entry.carbs || 0) / (entry.qty || 1), fat: (entry.fat || 0) / (entry.qty || 1),
+    sugar: (entry.sugar || 0) / (entry.qty || 1), fiber: (entry.fiber || 0) / (entry.qty || 1),
+  };
+  entry._base = base; entry.qty = qty;
+  entry.calories = r1(base.calories * qty); entry.protein = r1(base.protein * qty);
+  entry.carbs = r1(base.carbs * qty); entry.fat = r1(base.fat * qty);
+  entry.sugar = r1(base.sugar * qty); entry.fiber = r1(base.fiber * qty);
+  saveRemote(); renderToday();
+}
+
+// ── Food search ────────────────────────────────────────
+async function searchFood() {
+  const q = document.getElementById('food-query').value.trim();
+  if (!q) return;
+  const res = document.getElementById('search-results');
+  res.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0;">Searching...</div>';
+  try {
+    const r = await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=7&api_key=DEMO_KEY`);
+    const data = await r.json();
+    if (!data.foods || !data.foods.length) { res.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No results. Try different keywords or add manually.</div>'; return; }
+    const meal = document.getElementById('meal-type').value;
+    searchResults = {};
+    res.innerHTML = data.foods.slice(0, 5).map(f => {
+      const get = name => { const n = f.foodNutrients && f.foodNutrients.find(x => x.nutrientName && x.nutrientName.toLowerCase().includes(name)); return n ? r1(n.value) : 0; };
+      const cal = get('energy') || get('calorie');
+      const food = { id: 'sr' + f.fdcId, name: f.description.substring(0, 65),
+        calories: cal, protein: get('protein'), carbs: get('carbohydrate'),
+        fat: get('total lipid') || get('fat'), sugar: get('sugars') || get('sugar'),
+        fiber: get('fiber'), serving: 'Per ' + (f.servingSize ? Math.round(f.servingSize) + (f.servingSizeUnit || 'g') : '100g') };
+      searchResults[food.id] = food;
+      const qid = 'qty-' + food.id;
+      const starred = isSaved(food.id);
+      return `<div class="food-result">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="flex:1;">
+            <div class="food-result-name">${food.name}</div>
+            <div class="food-result-macros">${macBadges(food)}
+              <span style="font-size:11px;color:var(--muted);">Sugar ${r1(food.sugar)}g · Fiber ${r1(food.fiber)}g</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);">${food.serving}</div>
+          </div>
+          <button class="star-btn ${starred ? 'on' : ''}" id="star-${food.id}" onclick="toggleSave('${food.id}')" aria-label="Save">★</button>
+        </div>
+        <div class="food-result-actions">
+          <span style="font-size:12px;color:var(--muted);">Qty:</span>
+          <input type="number" id="${qid}" value="1" min="0.25" step="0.25" style="width:52px;padding:5px;border:1px solid var(--border);border-radius:6px;font-size:12px;" />
+          <button class="btn btn-primary" onclick="addFromSearch('${food.id}','${meal}','${qid}')">Add to ${meal}</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    res.innerHTML = '<div style="font-size:13px;color:var(--red);padding:8px 0;">Search failed. Check connection or add manually.</div>';
+  }
+}
+
+function addFoodEntry(food, meal, qty) {
+  qty = parseFloat(qty) || 1;
+  const base = { calories: food.calories, protein: food.protein, carbs: food.carbs, fat: food.fat, sugar: food.sugar || 0, fiber: food.fiber || 0 };
+  state.foodLog.push({
+    id: Date.now().toString() + Math.random().toString(36).slice(2, 5),
+    name: food.name, meal, date: todayStr(), qty, serving: food.serving || '',
+    calories: r1(base.calories * qty), protein: r1(base.protein * qty),
+    carbs: r1(base.carbs * qty), fat: r1(base.fat * qty),
+    sugar: r1(base.sugar * qty), fiber: r1(base.fiber * qty),
+    _base: base
+  });
+  saveRemote();
+}
+
+function addFromSearch(foodId, meal, qtyId) {
+  const food = searchResults[foodId]; if (!food) return;
+  const qty = parseFloat(document.getElementById(qtyId).value) || 1;
+  addFoodEntry(food, meal, qty);
+  document.getElementById('search-results').innerHTML = `<div class="msg-ok">✓ Added ×${qty} to ${meal}. Search again or check Today.</div>`;
+  renderToday();
+}
+
+function toggleSave(foodId) {
+  const food = searchResults[foodId]; if (!food) return;
+  const idx = state.savedFoods.findIndex(f => f.id === foodId);
+  if (idx >= 0) state.savedFoods.splice(idx, 1);
+  else state.savedFoods.push({ ...food });
+  saveRemote();
+  const btn = document.getElementById('star-' + foodId);
+  if (btn) { btn.className = 'star-btn ' + (isSaved(foodId) ? 'on' : ''); }
+}
+
+// ── Saved foods ────────────────────────────────────────
+function renderFavs() {
+  const filter = (document.getElementById('fav-search') || {}).value || '';
+  const meal = (document.getElementById('fav-meal') || {}).value || 'breakfast';
+  const list = document.getElementById('favs-list');
+  if (!state.savedFoods.length) { list.innerHTML = '<div class="empty-state">No saved foods yet. Star items in search or use "Add & save".</div>'; return; }
+  const filtered = filter ? state.savedFoods.filter(f => f.name.toLowerCase().includes(filter.toLowerCase())) : state.savedFoods;
+  if (!filtered.length) { list.innerHTML = '<div class="empty-state">No matches.</div>'; return; }
+  list.innerHTML = filtered.map(f => {
+    const qid = 'fqty-' + f.id;
+    return `<div class="fav-item">
+      <div class="fav-info">
+        <div class="fav-name">${f.name}</div>
+        <div class="fav-macros">${macBadges(f)}</div>
+        <div class="fav-macros">${f.serving || 'per serving'}</div>
+      </div>
+      <div class="fav-actions">
+        <span style="font-size:12px;color:var(--muted);">×</span>
+        <input type="number" id="${qid}" value="1" min="0.25" step="0.25" style="width:48px;padding:5px;border:1px solid var(--border);border-radius:6px;font-size:12px;" />
+        <button class="btn btn-primary" style="padding:6px 10px;" onclick="addFromFav('${f.id}','${qid}')">Log</button>
+        <button class="del-btn" onclick="removeFav('${f.id}')" aria-label="Delete">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addFromFav(favId, qtyId) {
+  const food = state.savedFoods.find(f => f.id === favId); if (!food) return;
+  const qty = parseFloat(document.getElementById(qtyId).value) || 1;
+  const meal = document.getElementById('fav-meal').value;
+  addFoodEntry(food, meal, qty);
+  renderToday();
+  const list = document.getElementById('favs-list');
+  const n = document.createElement('div'); n.className = 'msg-ok'; n.textContent = '✓ Added ×' + qty + ' ' + food.name + ' to ' + meal;
+  list.prepend(n); setTimeout(() => { try { list.removeChild(n); } catch(e) {} }, 2000);
+}
+
+function removeFav(favId) { state.savedFoods = state.savedFoods.filter(f => f.id !== favId); saveRemote(); renderFavs(); }
+
+function addManual(saveIt) {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) { alert('Enter a food name.'); return; }
+  const qty = parseFloat(document.getElementById('m-qty').value) || 1;
+  const base = { id: 'm' + Date.now(), name, serving: 'per serving',
+    calories: parseFloat(document.getElementById('m-cal').value) || 0,
+    protein:  parseFloat(document.getElementById('m-prot').value) || 0,
+    carbs:    parseFloat(document.getElementById('m-carb').value) || 0,
+    fat:      parseFloat(document.getElementById('m-fat').value) || 0,
+    sugar:    parseFloat(document.getElementById('m-sugar').value) || 0,
+    fiber:    parseFloat(document.getElementById('m-fiber').value) || 0 };
+  const meal = document.getElementById('m-meal').value;
+  if (saveIt) state.savedFoods.push({ ...base });
+  addFoodEntry(base, meal, qty);
+  ['m-name','m-cal','m-prot','m-carb','m-fat','m-sugar','m-fiber'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('m-qty').value = '1';
+  renderToday();
+  const msg = document.getElementById('manual-msg');
+  msg.className = 'msg-ok'; msg.textContent = '✓ Added ×' + qty + (saveIt ? ' and saved to favourites' : '');
+  setTimeout(() => msg.textContent = '', 2500);
+}
+
+// ── Weight ─────────────────────────────────────────────
+function logWeight() {
+  const val = parseFloat(document.getElementById('weight-val').value);
+  const date = document.getElementById('weight-date').value || todayStr();
+  if (!val || val < 50 || val > 600) { alert('Enter a valid weight.'); return; }
+  state.weightLog.push({ val, date, id: Date.now().toString() });
+  state.weightLog.sort((a, b) => b.date.localeCompare(a.date));
+  saveRemote(); document.getElementById('weight-val').value = ''; renderWeight();
+}
+
+function renderWeight() {
+  const list = document.getElementById('weight-history');
+  if (!state.weightLog.length) { list.innerHTML = '<div class="empty-state">No entries yet.</div>'; buildWC([]); return; }
+  list.innerHTML = `<table class="history-table"><thead><tr><th>Date</th><th>Weight</th><th>Change</th><th></th></tr></thead><tbody>${
+    state.weightLog.slice(0, 10).map((e, i) => {
+      const prev = state.weightLog[i + 1];
+      const diff = prev ? (e.val - prev.val) : null;
+      const ds = diff !== null ? `<span style="color:${diff > 0 ? 'var(--red)' : 'var(--green)'};">${diff > 0 ? '+' : ''}${diff.toFixed(1)} lbs</span>` : '—';
+      return `<tr><td>${fmtD(e.date)}</td><td><strong>${e.val}</strong> lbs</td><td>${ds}</td><td><button class="del-btn" onclick="removeWeight('${e.id}')">✕</button></td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+  buildWC([...state.weightLog].sort((a, b) => a.date.localeCompare(b.date)).slice(-20));
+}
+
+function removeWeight(id) { state.weightLog = state.weightLog.filter(e => e.id !== id); saveRemote(); renderWeight(); }
+
+function buildWC(data) {
+  const ctx = document.getElementById('weightChart'); if (!ctx) return;
+  if (wChart) { wChart.destroy(); wChart = null; }
+  if (!data.length) return;
+  wChart = new Chart(ctx, { type: 'line', data: { labels: data.map(d => fmtD(d.date)), datasets: [{ label:'Weight', data: data.map(d => d.val), borderColor:'#3266ad', backgroundColor:'rgba(50,102,173,0.08)', pointRadius:4, tension:0.3, fill:true }] }, options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ ticks:{ callback: v => v + ' lbs' } } } } });
+}
+
+// ── Blood sugar ────────────────────────────────────────
+function logSugar() {
+  const val = parseFloat(document.getElementById('sugar-val').value);
+  const timing = document.getElementById('sugar-timing').value;
+  const date = document.getElementById('sugar-date').value || todayStr();
+  if (!val || val < 0.5 || val > 35) { alert('Enter a valid mmol/L reading (e.g. 5.4).'); return; }
+  let flag = 'normal';
+  if (timing === 'fasting') { if (val >= 7.0) flag = 'high'; else if (val >= 5.6) flag = 'elevated'; }
+  else if (timing === 'after meal') { if (val >= 11.1) flag = 'high'; else if (val >= 7.8) flag = 'elevated'; }
+  else if (timing === 'bedtime' && val >= 8.0) flag = 'high';
+  state.sugarLog.push({ val, timing, date, flag, id: Date.now().toString() });
+  state.sugarLog.sort((a, b) => b.date.localeCompare(a.date));
+  saveRemote(); document.getElementById('sugar-val').value = ''; renderSugar();
+}
+
+function renderSugar() {
+  const list = document.getElementById('sugar-history');
+  if (!state.sugarLog.length) { list.innerHTML = '<div class="empty-state">No readings yet.</div>'; return; }
+  list.innerHTML = `<table class="history-table"><thead><tr><th>Date</th><th>Reading</th><th>Timing</th><th>Status</th><th></th></tr></thead><tbody>${
+    state.sugarLog.slice(0, 15).map(e => {
+      const cls = e.flag === 'high' ? 'status-high' : e.flag === 'elevated' ? 'status-elevated' : 'status-normal';
+      const label = e.flag === 'high' ? 'High' : e.flag === 'elevated' ? 'Elevated' : 'Normal';
+      return `<tr><td>${fmtD(e.date)}</td><td><strong>${r1(e.val)}</strong> mmol/L</td><td style="text-transform:capitalize;">${e.timing}</td><td class="${cls}">${label}</td><td><button class="del-btn" onclick="removeSugar('${e.id}')">✕</button></td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+}
+
+function removeSugar(id) { state.sugarLog = state.sugarLog.filter(e => e.id !== id); saveRemote(); renderSugar(); }
+
+// ── Exercise ───────────────────────────────────────────
+const MET = { light:2.5, moderate:5, vigorous:8 };
+function updateBurn() {
+  const mins = parseInt(document.getElementById('ex-mins').value);
+  const int = document.getElementById('ex-int').value;
+  const el = document.getElementById('burn-est');
+  if (mins > 0) el.textContent = 'Estimated burn: ~' + Math.round((MET[int] || 4) * (state.goals.weight || 210) * 0.453592 * (mins / 60)) + ' kcal';
+  else el.textContent = '';
+}
+
+function logExercise() {
+  const name = document.getElementById('ex-name').value.trim();
+  const mins = parseInt(document.getElementById('ex-mins').value);
+  const intensity = document.getElementById('ex-int').value;
+  const date = document.getElementById('ex-date').value || todayStr();
+  if (!name || !mins) { alert('Enter activity and duration.'); return; }
+  const burned = Math.round((MET[intensity] || 4) * (state.goals.weight || 210) * 0.453592 * (mins / 60));
+  state.exerciseLog.push({ name, mins, intensity, date, burned, id: Date.now().toString() });
+  state.exerciseLog.sort((a, b) => b.date.localeCompare(a.date));
+  saveRemote(); document.getElementById('ex-name').value = ''; document.getElementById('ex-mins').value = '';
+  document.getElementById('burn-est').textContent = ''; renderExercise();
+}
+
+function renderExercise() {
+  const list = document.getElementById('exercise-history');
+  if (!state.exerciseLog.length) { list.innerHTML = '<div class="empty-state">No exercise logged yet.</div>'; return; }
+  list.innerHTML = `<table class="history-table"><thead><tr><th>Date</th><th>Activity</th><th>Mins</th><th>Intensity</th><th>Burned</th><th></th></tr></thead><tbody>${
+    state.exerciseLog.slice(0, 15).map(e => `<tr><td>${fmtD(e.date)}</td><td style="font-weight:500;">${e.name}</td><td>${e.mins}</td><td style="text-transform:capitalize;">${e.intensity}</td><td style="color:var(--green);">${e.burned} kcal</td><td><button class="del-btn" onclick="removeExercise('${e.id}')">✕</button></td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+function removeExercise(id) { state.exerciseLog = state.exerciseLog.filter(e => e.id !== id); saveRemote(); renderExercise(); }
+
+// ── Goals ──────────────────────────────────────────────
+function fillGoals() {
+  const g = state.goals;
+  document.getElementById('g-age').value    = g.age || 57;
+  document.getElementById('g-weight').value = g.weight || 210;
+  document.getElementById('g-cal').value    = g.calories || 1800;
+  document.getElementById('g-prot').value   = g.protein || 140;
+  document.getElementById('g-carb').value   = g.carbs || 180;
+  document.getElementById('g-fat').value    = g.fat || 60;
+  document.getElementById('g-sugar').value  = g.sugar || 36;
+  document.getElementById('g-fiber').value  = g.fiber || 30;
+  document.getElementById('g-name').value   = g.name || '';
+}
+
+function saveGoals() {
+  state.goals = {
+    age:      parseInt(document.getElementById('g-age').value) || 57,
+    weight:   parseInt(document.getElementById('g-weight').value) || 210,
+    calories: parseInt(document.getElementById('g-cal').value) || 1800,
+    protein:  parseInt(document.getElementById('g-prot').value) || 140,
+    carbs:    parseInt(document.getElementById('g-carb').value) || 180,
+    fat:      parseInt(document.getElementById('g-fat').value) || 60,
+    sugar:    parseInt(document.getElementById('g-sugar').value) || 36,
+    fiber:    parseInt(document.getElementById('g-fiber').value) || 30,
+    name:     document.getElementById('g-name').value.trim(),
+  };
+  saveRemote(); renderToday();
+  const el = document.getElementById('goals-ok'); el.style.display = 'inline'; setTimeout(() => el.style.display = 'none', 2000);
+}
+
+function clearAll() {
+  if (!confirm('Clear ALL your data? Cannot be undone.')) return;
+  state = { goals: state.goals, foodLog: [], weightLog: [], sugarLog: [], exerciseLog: [], savedFoods: state.savedFoods };
+  saveRemote(); renderToday(); renderWeight(); renderSugar(); renderExercise();
+}
+
+// ── Init ───────────────────────────────────────────────
+async function init() {
+  const t = todayStr();
+  document.getElementById('view-date').value = t;
+  ['weight-date','sugar-date','ex-date'].forEach(id => { const el = document.getElementById(id); if (el) el.value = t; });
+  setSyncBadge(false, 'Loading...');
+  await loadRemote();
+  await loadMemberInfo();
+  fillGoals(); renderToday();
+}
+
+init();
+</script>
+</body>
+</html>

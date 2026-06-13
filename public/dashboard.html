@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Family Dashboard</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="dash-header">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.5rem;">
+    <div>
+      <h1>🏠 Family Health Dashboard</h1>
+      <div class="dash-date" id="dash-date"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+      <a href="index.html" class="refresh-btn" style="text-decoration:none;">🔐 My tracker</a>
+    </div>
+  </div>
+</div>
+
+<div class="dash-body">
+  <div id="dash-grid" class="dash-grid">
+    <div style="text-align:center;padding:3rem;color:var(--muted);grid-column:1/-1;">Loading family data...</div>
+  </div>
+</div>
+
+<script>
+const COLORS = ['#3266ad','#1D9E75','#D85A30','#7F77DD','#D4537E','#BA7517'];
+
+function todayStr() { return new Date().toLocaleDateString('en-CA'); }
+
+function pct(val, goal) { return goal ? Math.min(100, Math.round(val / goal * 100)) : 0; }
+
+function barColor(p) { return p >= 100 ? '#E24B4A' : p >= 80 ? '#EF9F27' : '#1D9E75'; }
+
+function initials(name) {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function renderMemberCard(m, color) {
+  const g = m.goals || {};
+  const t = m.totals || {};
+  const macros = [
+    { label: 'Calories', val: t.calories || 0, goal: g.calories || 1800, unit: 'kcal', color: '#3266ad' },
+    { label: 'Protein',  val: t.protein  || 0, goal: g.protein  || 140,  unit: 'g',    color: '#1D9E75' },
+    { label: 'Carbs',    val: t.carbs    || 0, goal: g.carbs    || 180,  unit: 'g',    color: '#BA7517' },
+    { label: 'Fat',      val: t.fat      || 0, goal: g.fat      || 60,   unit: 'g',    color: '#D4537E' },
+  ];
+
+  const barsHTML = macros.map(macro => {
+    const p = pct(macro.val, macro.goal);
+    return `<div class="macro-row">
+      <div class="macro-label">${macro.label}</div>
+      <div class="macro-bar-bg"><div class="macro-bar-fill" style="width:${p}%;background:${macro.color};"></div></div>
+      <div class="macro-val">${macro.val} / ${macro.goal}</div>
+    </div>`;
+  }).join('');
+
+  const weightStr = m.latestWeight ? m.latestWeight + ' lbs' : '—';
+  const sugarStr = m.latestSugar ? (m.latestSugar.val.toFixed(1) + ' mmol/L') : '—';
+  const burnStr = m.totalBurned ? (m.totalBurned + ' kcal') : '—';
+
+  const noDataMsg = !m.hasData ? '<div class="no-data-msg">No data logged yet today</div>' : '';
+
+  return `<div class="member-card ${!m.hasData ? 'no-data-card' : ''}">
+    <div class="member-card-header">
+      <div class="member-avatar" style="background:${color};">${initials(m.name)}</div>
+      <div>
+        <div class="member-name">${m.name}</div>
+        <div class="member-sub">${m.hasData ? 'Active today' : 'No entries today'}</div>
+      </div>
+    </div>
+    <div class="member-card-body">
+      ${noDataMsg}
+      <div class="macro-bars">${barsHTML}</div>
+      <div class="member-stats">
+        <div class="mini-stat">
+          <div class="mini-stat-val">${weightStr}</div>
+          <div class="mini-stat-label">Weight</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-stat-val" style="font-size:11px;">${sugarStr}</div>
+          <div class="mini-stat-label">Blood sugar</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-stat-val">${burnStr}</div>
+          <div class="mini-stat-label">Burned</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function loadDashboard() {
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const grid = document.getElementById('dash-grid');
+  grid.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--muted);grid-column:1/-1;">Loading...</div>';
+
+  try {
+    const r = await fetch('/api/dashboard');
+    const data = await r.json();
+    if (!data.members || !data.members.length) {
+      grid.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--muted);grid-column:1/-1;">No family members set up yet.<br><br><a href="setup.html" style="color:var(--blue);">Set up family members →</a></div>';
+      return;
+    }
+    grid.innerHTML = data.members.map((m, i) => renderMemberCard(m, COLORS[i % COLORS.length])).join('');
+  } catch (e) {
+    grid.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--muted);grid-column:1/-1;">Could not load data. <button onclick="loadDashboard()" style="color:var(--blue);background:none;border:none;cursor:pointer;">Try again</button></div>';
+  }
+}
+
+loadDashboard();
+setInterval(loadDashboard, 60000); // auto-refresh every minute
+</script>
+</body>
+</html>

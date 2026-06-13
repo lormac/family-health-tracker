@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Family Health Tracker</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body class="login-page">
+
+<div class="login-wrap">
+  <div class="login-logo">
+    <div class="logo-icon">💪</div>
+    <h1>Family Health Tracker</h1>
+    <p>Enter your 4-digit PIN to access your tracker</p>
+  </div>
+
+  <div class="pin-card">
+    <div class="pin-display" id="pin-display">
+      <span class="pin-dot" id="d0"></span>
+      <span class="pin-dot" id="d1"></span>
+      <span class="pin-dot" id="d2"></span>
+      <span class="pin-dot" id="d3"></span>
+    </div>
+    <div id="pin-error" class="pin-error" style="display:none;"></div>
+    <div class="pin-grid">
+      <button class="pin-btn" onclick="pinPress('1')">1</button>
+      <button class="pin-btn" onclick="pinPress('2')">2</button>
+      <button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button>
+      <button class="pin-btn" onclick="pinPress('5')">5</button>
+      <button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button>
+      <button class="pin-btn" onclick="pinPress('8')">8</button>
+      <button class="pin-btn" onclick="pinPress('9')">9</button>
+      <button class="pin-btn pin-clear" onclick="pinClear()">⌫</button>
+      <button class="pin-btn" onclick="pinPress('0')">0</button>
+      <button class="pin-btn pin-go" onclick="pinSubmit()">Go</button>
+    </div>
+  </div>
+
+  <a href="dashboard.html" class="dashboard-link">📊 View Family Dashboard</a>
+</div>
+
+<script>
+let pin = '';
+function pinPress(d) {
+  if (pin.length >= 4) return;
+  pin += d;
+  updateDots();
+  if (pin.length === 4) setTimeout(pinSubmit, 200);
+}
+function pinClear() {
+  pin = pin.slice(0, -1);
+  updateDots();
+  document.getElementById('pin-error').style.display = 'none';
+}
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('d' + i).classList.toggle('filled', i < pin.length);
+  }
+}
+async function pinSubmit() {
+  if (pin.length !== 4) return;
+  const btn = document.querySelector('.pin-go');
+  btn.textContent = '...';
+  try {
+    const r = await fetch('/api/load?pin=' + pin);
+    if (r.ok || r.status === 404) {
+      // 404 means new user, that's fine — tracker will init fresh
+      sessionStorage.setItem('userPin', pin);
+      window.location.href = 'tracker.html';
+    } else {
+      showError('PIN not recognised. Try again.');
+      pin = ''; updateDots();
+    }
+  } catch (e) {
+    // Allow offline / API failure — go to tracker anyway with cached data
+    sessionStorage.setItem('userPin', pin);
+    window.location.href = 'tracker.html';
+  }
+  btn.textContent = 'Go';
+}
+function showError(msg) {
+  const el = document.getElementById('pin-error');
+  el.textContent = msg; el.style.display = 'block';
+  pin = ''; updateDots();
+}
+</script>
+</body>
+</html>

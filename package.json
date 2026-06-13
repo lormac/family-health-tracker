@@ -1,0 +1,12 @@
+{
+  "name": "family-health-tracker",
+  "version": "1.0.0",
+  "description": "Family macro & health tracker",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
